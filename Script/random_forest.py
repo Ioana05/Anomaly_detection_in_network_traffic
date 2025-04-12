@@ -34,7 +34,7 @@ print(len(training_set))
 
 training_set = training_set.drop(columns = ['id'])
 training_set = training_set.sample(frac=1, random_state=42).reset_index(drop=True)
-#  normalizam
+#normalizam
 scaler = MinMaxScaler()
 training_set = pd.DataFrame(scaler.fit_transform(training_set), columns=training_set.columns)
 
@@ -117,16 +117,16 @@ def computeAnomalyScore(dataPoint, forest):
 forest = iForest(training_set, number_of_trees, sub_sampling_size )
 classified_labels = {}
 
-for i, x in training_set.iterrows():
+for i, x in testing_set.iterrows():
     result = computeAnomalyScore(x, forest)
-    if result > 0.6:
+    if result > 0.65:
         classified_labels[i] = float(1.0)
     else:
         classified_labels[i] = float(0.0)
 
 # print(type(training_set['label'][0]))
 # print(type(list(classified_labels)[0]))
-print(accuracy_score(training_set['label'], list(classified_labels.values())))
+print(accuracy_score(testing_set['label'], list(classified_labels.values())))
 
 
 

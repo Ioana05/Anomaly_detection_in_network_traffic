@@ -3,11 +3,19 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
-training_csv = ("C:/Users/Asus/Desktop/Licenta/csvs/UNSW_NB15_training-set.csv")
-testing_csv = ("C:/Users/Asus/Desktop/Licenta/csvs/UNSW_NB15_testing-set.csv")
+training_csv = ("C:/Users/Asus/Desktop/Anomaly_detection_in_network_traffic/datasets/UNSW_NB15_training-set.csv")
+testing_csv = ("C:/Users/Asus/Desktop/Anomaly_detection_in_network_traffic/datasets/UNSW_NB15_testing-set.csv")
 
 training_set = pd.read_csv(training_csv)
 testing_set = pd.read_csv(testing_csv)
+
+nr_anomalies = 0
+for i, point in testing_set.iterrows():
+    if point['label'] == 1:
+        nr_anomalies += 1
+
+print("Size of testing set: ", len(testing_set) )
+print("Anomalies from testing set: ", nr_anomalies)
 
 scaler = StandardScaler()
 df_scaled = scaler.fit_transform(testing_set.drop(columns=['label', 'id', 'proto', 'service', 'state', 'attack_cat']))
