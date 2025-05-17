@@ -4,29 +4,20 @@ from load_files import training_set, testing_set
 from sklearn.metrics import accuracy_score, classification_report
 from load_files import final_testing_set, final_training_set
 
-# ==========================================
-# 4. Modelul Isolation Forest
-# ==========================================
-anomaly_ratio = final_training_set.sum() / len(testing_set)
 
-iso_forest = IsolationForest(
-    n_estimators=100,
-    max_samples=256,
-    contamination=0.5,  # ajustează în funcție de distribuția anomaliilor tale
-    random_state=42
-)
+# Drop labels and ID from the training/testing data
+X_train = final_training_set.drop(columns=['label', 'id'])
+X_test = final_testing_set.drop(columns=['label', 'id'])
+y_test = final_testing_set['label']
 
-# Fit pe datele de antrenament
-iso_forest.fit(final_training_set)
+# Train the Isolation Forest
+iso_forest = IsolationForest(n_estimators=60, max_samples=200,  random_state=42)
+iso_forest.fit(X_train)
 
-# Predict pe datele de test
-preds = iso_forest.predict(testing_set)
+# Predict anomalies
+preds = iso_forest.predict(X_test)
+preds = [1 if x == -1 else 0 for x in preds]  # Convert -1 to 1 (anomaly), 1 to 0 (normal)
 
-# Convertim -1 = anomalii → 1, 1 = normal → 0
-preds = [1 if x == -1 else 0 for x in preds]
-
-# ==========================================
-# 5. Rezultate
-# ==========================================
-print("Accuracy:", accuracy_score(testing_set['label'], preds))
-print(classification_report(testing_set['label'], preds))
+# Evaluate
+print("Accuracy:", accuracy_score(y_test, preds))
+# print(classification_report(y_test, preds))

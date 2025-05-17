@@ -1,9 +1,17 @@
 import pandas as pd
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler, RobustScaler
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (accuracy_score, classification_report,
+                           confusion_matrix, roc_auc_score, f1_score)
+from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+import seaborn as sns
+from imblearn.combine import SMOTEENN
+from sklearn.model_selection import StratifiedKFold
+from sklearn.linear_model import ElasticNetCV
+
 
 ########## INCARC DATELE #####################
 training_csv = ("C:/Users/Asus/Desktop/Anomaly_detection_in_network_traffic/datasets/UNSW_NB15_training-set.csv")
@@ -14,86 +22,42 @@ testing_set = pd.read_csv(testing_csv)
 
 ########## FEATURE ENGINEERING #################
 def feature_engineering(dataset):
-    dataset['network_bytes'] = dataset['sbytes'] + dataset['dbytes']
-    dataset['bytes_ratio'] = dataset['sbytes'] / (dataset['dbytes'] + 1)
-    dataset['total_bytes'] = dataset['sbytes'] + dataset['dbytes']
-    dataset['duration_per_byte'] = dataset['dur'] / (dataset['total_bytes'] + 1)
-    dataset['pkts_per_sec'] = dataset['spkts'] / (dataset['dur'] + 1)
-    dataset['direction_flag'] = (dataset['spkts'] > dataset['dpkts']).astype(int)
+    # Basic features
+    # dataset['network_bytes'] = dataset['sbytes'] + dataset['dbytes']
+    # dataset['bytes_ratio'] = dataset['sbytes'] / (dataset['dbytes'] + 1)
+    # dataset['total_pkts'] = dataset['spkts'] + dataset['dpkts']
+    # dataset['pkts_ratio'] = dataset['spkts'] / (dataset['dpkts'] + 1)
+    # dataset['duration_per_byte'] = dataset['dur'] / (dataset['network_bytes'] + 1)
+    # dataset['pkts_per_sec'] = dataset['total_pkts'] / (dataset['dur'] + 1)
+    # dataset['direction_flag'] = (dataset['spkts'] > dataset['dpkts']).astype(int)
 
+    # # Advanced features
+    # dataset['avg_pkt_size'] = dataset['network_bytes'] / (dataset['total_pkts'] + 1)
+    # dataset['flow_byte_rate'] = dataset['network_bytes'] / (dataset['dur'] + 1)
+    # dataset['flow_pkt_rate'] = dataset['total_pkts'] / (dataset['dur'] + 1)
+    # dataset['tcp_flag_count'] = dataset[['ct_flw_http_mthd', 'is_ftp_login']].sum(axis=1)
+
+
+    # return dataset
+
+    dataset['flow_iat_std'] = dataset[['smean', 'dmean']].std(axis=1)  # Inter-arrival time variability
+    dataset['proto_service_combo'] = dataset['proto'].astype(str) + "_" + dataset['service'].astype(str)  # Interaction feature
+    dataset['packet_size_entropy'] = -(dataset['spkts']*np.log(dataset['spkts']+1e-6) + dataset['dpkts']*np.log(dataset['dpkts']+1e-6))  # Traffic randomness
     return dataset
-
-########## ANALIZAM CORELATII ######################
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-# o sa consider anomalie mare tot ce e peste 0.9
-
-# drop classes which are not useful for the classification
-training_set.drop(['attack_cat'], axis=1, inplace=True)
-testing_set.drop(['attack_cat'], axis=1, inplace=True)
-
-# selectează doar coloanele numerice
-numeric_training_set = training_set.select_dtypes(include=['number'])
-numeric_testing_set = testing_set.select_dtypes(include=['number'])
-
-# calculează matricea de corelație
-corr_matrix_test = numeric_training_set.corr().abs()
-corr_matrix_train = numeric_testing_set.corr().abs()
-
-# heatmap pentru vizualizare
-# plt.figure(figsize=(25, 10))
-# sns.heatmap(corr_matrix_test, annot=True, cmap='coolwarm')
-# plt.title("Matricea de corelație pe datele de test")
-# plt.show()
-
-# heatmap pentru vizualizare
-# plt.figure(figsize=(25, 10))
-# sns.heatmap(corr_matrix_train, annot=True, cmap='coolwarm')
-# plt.title("Matricea de corelație pe datele de train")
-# plt.show()
-
-# pastram doar corelatiile de deasupra diagonalei principale
-upper_values_train = corr_matrix_train.where(np.triu(np.ones(corr_matrix_train.shape), k=1).astype(bool))
-# upper_values_train = corr_matrix_train.where(np.triu(np.ones(corr_matrix_train.shape), k=1).astype(bool))
-high_corr_pairs = [
-    (col, row, upper_values_train.loc[col, row])
-    for col in upper_values_train.columns
-    for row in upper_values_train.index
-    if upper_values_train.loc[col, row] > 0.95
-]
-columns_to_drop = set()
-for col, row, values in high_corr_pairs:
-  if col not in columns_to_drop:
-    columns_to_drop.add(col)
-
-training_set = feature_engineering(training_set)
-testing_set = feature_engineering(testing_set)
-
-columns_to_drop = list(columns_to_drop)
-
-#################### RENUNTAM LA COLOANELE CARE AU CORELATII MARI ###################
-training_set = training_set.drop(columns = columns_to_drop)
-testing_set = testing_set.drop(columns = columns_to_drop)
-
-# Înlocuiește "-" cu "None"
-for column in training_set.columns:
-  training_set[column] = training_set[column].apply(lambda x:"None" if x=="-" else x)
-  testing_set[column] = testing_set[column].apply(lambda x:"None" if x=="-" else x)
 
 ################### ENCODARE PE VALORILE NON NUMERICE #############################
 encoders = {}
 #  vom folosi acest dictionar de encoders ca sa fim siguri ca se vor face aceleasi encodari si pe datele de test si pe cele de train
 def preprocessing(dataset, fit = True):
-  categorical_columns = ['proto', 'service', 'state']
+  categorical_columns = ['proto', 'service', 'state', 'proto_service_combo']
+  if fit:
+      # Fit encoders on training data only
+      for col in categorical_columns:
+          encoders[col] = LabelEncoder().fit(dataset[col])
+  # Always transform using fitted encoders
   for col in categorical_columns:
-      if fit:
-          encoders[col] = LabelEncoder()
-          dataset[col] = encoders[col].fit_transform(dataset[col])
-      else:
-          dataset[col] = encoders[col].transform(dataset[col])
+      dataset[col] = encoders[col].transform(dataset[col])
   return dataset
-
 
 ################### SKRRR ######################
 def apply_log1p_if_skewed(df, threshold=1.0):
@@ -106,70 +70,212 @@ def apply_log1p_if_skewed(df, threshold=1.0):
 
 ################## NORMALIZAM ###################
 def normalization(dataset, fit=True, scaler=None):
+    dataset = dataset.select_dtypes(include=["number"])
     if fit:
         scaler = MinMaxScaler()
-        dataset = pd.DataFrame(scaler.fit_transform(dataset), columns=dataset.columns)
-        return dataset, scaler
+        features = scaler.fit_transform(dataset)
+        return features, scaler
     else:
-        dataset = pd.DataFrame(scaler.transform(dataset), columns=dataset.columns)
-        return dataset
+        features = scaler.transform(dataset)
+        return features, scaler
 
 
 ################# ECHILIBRAM DATASETUL ###############
 # echilibram datasetul
-def balance(dataset):
-  anomalies = dataset[dataset['label'] == 1]
-  normal_points = dataset[dataset['label']== 0]
-  print("Anomalies:", len(anomalies))
-  print("Normal points:", len(normal_points))
-  anomalies = anomalies.sample(n = min(len(anomalies), len(normal_points)))
-  normal_points = normal_points.sample(n = min(len(anomalies), len(normal_points)))
+def balance(dataset, min_samples=100, max_samples=3000, random_state=42):
+    if 'attack_cat' not in dataset.columns:
+        raise ValueError("Column 'attack_cat' is required for stratified balancing.")
 
-  balanced_dataset = pd.concat([anomalies, normal_points], ignore_index=True)
-  shuffled_dataset = balanced_dataset.sample(frac = 1).reset_index(drop = True)
-  shuffled_dataset['id'] = shuffled_dataset.index
-  print(len(shuffled_dataset))
+    normal = dataset[dataset['label'] == 0]
+    anomalies = dataset[dataset['label'] == 1]
+    attack_types = anomalies['attack_cat'].unique()
 
-  # shuffled_dataset = shuffled_dataset[:6000]
+    sampled_anomalies = []
+    for attack in attack_types:
+        subset = anomalies[anomalies['attack_cat'] == attack]
+        count = min(max(len(subset), min_samples), max_samples)
+        sampled = subset.sample(n=min(count, len(subset)), random_state=random_state)
+        sampled_anomalies.append(sampled)
 
-  return shuffled_dataset
+    balanced_anomalies = pd.concat(sampled_anomalies, ignore_index=True)
+    balanced_normals = normal.sample(n=len(balanced_anomalies), random_state=random_state, replace = False)
 
-############### APLIC TOATE FUNCTIILE ################
-training_set = balance(training_set)
-testing_set = balance(testing_set)
+    final = pd.concat([balanced_anomalies, balanced_normals], ignore_index=True).sample(frac=1, random_state=random_state)
+    final['id'] = final.index
+    print(f"Balanced (semi-stratified) dataset size: {len(final)}")
 
-training_set, skewed_cols = apply_log1p_if_skewed(training_set)
-testing_set, skewed_cols = apply_log1p_if_skewed(testing_set)
+    return final
 
+def stratified_kfold_balance(dataset, n_splits=5, min_samples=100, max_samples=3000, random_state=42):
+    """
+    Generate balanced folds while preserving attack type distribution
+    Returns: List of (train_idx, test_idx) pairs
+    """
+    if 'attack_cat' not in dataset.columns:
+        raise ValueError("Column 'attack_cat' is required for stratified balancing.")
+
+    # First create balanced dataset using your existing logic
+    balanced_data = balance(dataset, min_samples, max_samples, random_state)
+
+    # Create a combined stratification column (attack_cat + label)
+    balanced_data['stratify_col'] = balanced_data['attack_cat'].astype(str) + "_" + balanced_data['label'].astype(str)
+
+    # Initialize stratified k-fold
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+
+    # Generate folds
+    folds = []
+    for train_idx, test_idx in skf.split(balanced_data, balanced_data['stratify_col']):
+        folds.append((train_idx, test_idx))
+
+    return folds, balanced_data
+
+
+def elastic_net(X_train, y_train, X_test, y_test):
+  # Separate features and label
+  X_train = training_set.drop(columns=['attack_cat'])
+
+  # Use ElasticNetCV for feature selection
+  elastic_net = ElasticNetCV(l1_ratio=[0.7, 0.9, 1],  # More L1 emphasis
+                       cv=5,
+                       selection='random',  # Better for feature selection
+                       tol=1e-3)
+  elastic_net.fit(X_train, y_train)
+
+  # Get features with non-zero coefficients
+  selected_features = X_train.columns[elastic_net.coef_ != 0].tolist()
+  print(f"Selected features: {selected_features}")
+
+  # Filter both training and testing sets to use only selected features
+  training_set_filtered = X_train[selected_features]
+  testing_set_filtered = X_test[selected_features]
+  return training_set_filtered, testing_set_filtered
+
+########## ANALIZAM CORELATII ######################
+
+def corelation_matrix():
+  # drop classes which are not useful for the classification
+  # training_set.drop(['attack_cat'], axis=1, inplace=True)
+  # testing_set.drop(['attack_cat'], axis=1, inplace=True)
+
+  # selectează doar coloanele numerice
+  numeric_training_set = training_set.select_dtypes(include=['number'])
+  numeric_testing_set = testing_set.select_dtypes(include=['number'])
+
+  # calculează matricea de corelație
+  corr_matrix_test = numeric_testing_set.corr().abs()
+  corr_matrix_train = numeric_training_set.corr().abs()
+
+  # heatmap pentru vizualizare
+  # plt.figure(figsize=(25, 10))
+  # sns.heatmap(corr_matrix_test, annot=True, cmap='coolwarm')
+  # plt.title("Matricea de corelație pe datele de test")
+  # plt.show()
+
+  # heatmap pentru vizualizare
+  # plt.figure(figsize=(25, 10))
+  # sns.heatmap(corr_matrix_train, annot=True, cmap='coolwarm')
+  # plt.title("Matricea de corelație pe datele de train")
+  # plt.show()
+
+  # pastram doar corelatiile de deasupra diagonalei principale
+  upper_values_train = corr_matrix_train.where(np.triu(np.ones(corr_matrix_train.shape), k=1).astype(bool))
+  high_corr_pairs = [
+      (col, row, upper_values_train.loc[col, row])
+      for col in upper_values_train.columns
+      for row in upper_values_train.index
+      if upper_values_train.loc[col, row] > 0.95
+  ]
+  columns_to_drop = set()
+  for col, row, values in high_corr_pairs:
+    if col not in columns_to_drop:
+      columns_to_drop.add(col)
+
+  return list(columns_to_drop)
+
+
+
+# Dupa o analiza manuala a setului de date, am observat ca exista multe -
+# in coloana SERVICE
+# Calculăm moda pe setul de training (nu pe setul de test)
+def clean_dataset():
+    for col in training_set.columns:
+        # doar pe coloana Sevice intalnim aceste '-' simboluri pe care vrem sa le inlocuim
+        if col == 'service':
+            # inlocuiesc '-' cu moda
+            mode_val = training_set[col].mode()[0]
+            training_set[col] = training_set[col].replace('-', mode_val)
+            testing_set[col] = testing_set[col].replace('-', mode_val)
+
+        # verific daca exista si alte coloane cu None
+        if training_set[col].isnull().any():
+            if training_set[col].dtype == 'object':
+                mode_val = training_set[col].mode()[0]
+                training_set[col] = training_set[col].fillna(mode_val)
+                testing_set[col] = testing_set[col].fillna(mode_val)
+            else:
+                median_val = training_set[col].median()
+                training_set[col] = training_set[col].fillna(median_val)
+                testing_set[col] = testing_set[col].fillna(median_val)
+    return training_set
+
+# curatarea setului de date
+training_set = clean_dataset(training_set)
+
+#  Feature engineering
+training_set = feature_engineering(training_set)
+testing_set = feature_engineering(testing_set)
+
+# obtinem coloanele care ar putea fi eliminate calculand matricea de corelatie
+columns_to_drop = corelation_matrix()
+
+# RENUNTAM LA COLOANELE CARE AU CORELATII MARI
+training_set = training_set.drop(columns = columns_to_drop)
+testing_set = testing_set.drop(columns = columns_to_drop)
+
+# drop classes which are not useful for the classification
+# training_set.drop(['attack_cat'], axis=1, inplace=True)
+# testing_set.drop(['attack_cat'], axis=1, inplace=True)
+
+# encode categorical features
 training_set = preprocessing(training_set)
 testing_set = preprocessing(testing_set)
 
-final_training_set, scaler = normalization(training_set, fit=True)
-final_testing_set = normalization(testing_set, fit=False, scaler=scaler)
+# separate features and labels
+X_train = training_set.drop(columns=['label', 'id'])
+y_train = training_set['label']
+X_test = testing_set.drop(columns=['label', 'id'])
+y_test = testing_set['label']
 
-epochs = int(np.sqrt(len(training_set)))
+#  Feature scaling
+X_train, scaler = normalization(X_train, fit=True)
+X_test, scaler_test = normalization(X_test, fit=False, scaler=scaler)
+
+
+#  Feature selection
+selector = SelectKBest(f_classif, k=30)
+X_train = selector.fit_transform(X_train, y_train)
+X_test = selector.transform(X_test)
+# X_train, X_test = elastic_net(X_train,y_train, X_test, y_test)
+
+#  Handle class imbalance
+# smote = SMOTE(random_state = RANDOM_STATE)
+# X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+RANDOM_STATE = 42
+smote = SMOTE(random_state=RANDOM_STATE)
+X_res, y_res = smote.fit_resample(X_train, y_train)
+
+# training_set = balance(training_set)
+# testing_set = balance(testing_set)
+
+# training_set, skewed_cols = apply_log1p_if_skewed(training_set)
+# testing_set[skewed_cols] = np.log1p(testing_set[skewed_cols])
+
 
 # Setezi opțiunea globală pentru a afișa toate coloanele
 pd.set_option('display.max_columns', None)
 
+
 # Afișezi primele 5 rânduri (sau câte vrei tu)
 # print(training_set.head())
 # print(testing_set.head())
-
-epochs = int(np.sqrt(len(training_set)))
-sub_sampling_size = 256
-number_of_trees = 200
-
-
-scaler = StandardScaler()
-df_scaled = scaler.fit_transform(testing_set.drop(columns=['label', 'id', 'proto', 'service', 'state']))
-
-#try to use PCA to reduce dimensions and plot the dataset
-# pca = PCA(n_components=2)
-# df_pca = pca.fit_transform(df_scaled)
-#
-# plt.scatter(df_pca[:,0], df_pca[:, 1], cmap = "coolwarm", alpha = 0.5)
-# plt.xlabel("Principal Component 1")
-# plt.ylabel("Principal Component 2")
-# plt.title("PCA Projection of Multi-Dimensional Data")
-# plt.show()
