@@ -45,7 +45,7 @@ y_pred = (reconstruction_error > error_threshold).astype(int)
 
 # ===================== EVALUARE ======================== #
 
-print("\n📊 Threshold for anomaly detection:", round(error_threshold, 5))
+print(" Threshold for anomaly detection:", round(error_threshold, 5))
 print(confusion_matrix(y_test, y_pred))
 print(classification_report(y_test, y_pred, digits=4))
 print("ROC AUC:", roc_auc_score(y_test, reconstruction_error))
