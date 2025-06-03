@@ -72,7 +72,7 @@ def apply_log1p_if_skewed(df, threshold=1.0):
 def normalization(dataset, fit=True, scaler=None):
     dataset = dataset.select_dtypes(include=["number"])
     if fit:
-        scaler = MinMaxScaler()
+        scaler = RobustScaler()
         features = scaler.fit_transform(dataset)
         return features, scaler
     else:
@@ -107,10 +107,7 @@ def balance(dataset, min_samples=100, max_samples=3000, random_state=42):
     return final
 
 def stratified_kfold_balance(dataset, n_splits=5, min_samples=100, max_samples=3000, random_state=42):
-    """
-    Generate balanced folds while preserving attack type distribution
-    Returns: List of (train_idx, test_idx) pairs
-    """
+
     if 'attack_cat' not in dataset.columns:
         raise ValueError("Column 'attack_cat' is required for stratified balancing.")
 
@@ -219,12 +216,45 @@ def clean_dataset():
                 testing_set[col] = testing_set[col].fillna(median_val)
     return training_set
 
-# curatarea setului de date
-training_set = clean_dataset(training_set)
+def remove_anomalies(X, y, percentage=0.3):
 
-#  Feature engineering
+    if not 0 <= percentage < 1:
+        raise ValueError("Percentage must be between 0 and 1")
+
+    # Separate normal and anomalous samples
+    normal_X = X[y == 0]
+    anomalous_X = X[y == 1]
+    normal_y = y[y == 0]
+    anomalous_y = y[y == 1]
+
+    # Calculate the number of anomalies to remove
+    num_anomalies_to_remove = int(len(anomalous_X) * percentage)
+
+    if num_anomalies_to_remove > 0:
+        # Randomly sample anomalies to remove
+        drop_indices = np.random.choice(anomalous_X.index, num_anomalies_to_remove, replace=False)
+        anomalous_X_filtered = anomalous_X.drop(drop_indices)
+        anomalous_y_filtered = anomalous_y.drop(drop_indices)
+
+        # Combine the filtered anomalies with the normal samples
+        X_filtered = pd.concat([normal_X, anomalous_X_filtered])
+        y_filtered = pd.concat([normal_y, anomalous_y_filtered])
+    else:
+        X_filtered = X
+        y_filtered = y
+
+    return X_filtered, y_filtered
+
+# curatarea setului de date
+training_set = clean_dataset()
+
+# Feature engineering
 training_set = feature_engineering(training_set)
 testing_set = feature_engineering(testing_set)
+
+# encode categorical features
+training_set = preprocessing(training_set)
+testing_set = preprocessing(testing_set)
 
 # obtinem coloanele care ar putea fi eliminate calculand matricea de corelatie
 columns_to_drop = corelation_matrix()
@@ -237,15 +267,21 @@ testing_set = testing_set.drop(columns = columns_to_drop)
 # training_set.drop(['attack_cat'], axis=1, inplace=True)
 # testing_set.drop(['attack_cat'], axis=1, inplace=True)
 
-# encode categorical features
-training_set = preprocessing(training_set)
-testing_set = preprocessing(testing_set)
 
 # separate features and labels
 X_train = training_set.drop(columns=['label', 'id'])
 y_train = training_set['label']
 X_test = testing_set.drop(columns=['label', 'id'])
 y_test = testing_set['label']
+
+# # 5. Apply log transform to skewed features
+# X_train, skewed_cols = apply_log1p_if_skewed(X_train.copy())  # Apply to a copy to avoid modifying the original
+# X_test_copy = X_test.copy() # Create a copy of X_test to apply log transform
+# X_test_copy[skewed_cols] = np.log1p(X_test_copy[skewed_cols])
+# X_test = X_test_copy # Assign the modified X_test back
+
+# X_train, y_train = remove_anomalies(X_train, y_train, percentage=0.8)
+
 
 #  Feature scaling
 X_train, scaler = normalization(X_train, fit=True)
@@ -259,17 +295,14 @@ X_test = selector.transform(X_test)
 # X_train, X_test = elastic_net(X_train,y_train, X_test, y_test)
 
 #  Handle class imbalance
-# smote = SMOTE(random_state = RANDOM_STATE)
-# X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 RANDOM_STATE = 42
 smote = SMOTE(random_state=RANDOM_STATE)
 X_res, y_res = smote.fit_resample(X_train, y_train)
+# X_res =X_train
+# y_res = y_train
 
 # training_set = balance(training_set)
 # testing_set = balance(testing_set)
-
-# training_set, skewed_cols = apply_log1p_if_skewed(training_set)
-# testing_set[skewed_cols] = np.log1p(testing_set[skewed_cols])
 
 
 # Setezi opțiunea globală pentru a afișa toate coloanele
