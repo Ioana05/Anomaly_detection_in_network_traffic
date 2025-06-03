@@ -59,7 +59,7 @@ def preprocessing(dataset, fit = True):
       dataset[col] = encoders[col].transform(dataset[col])
   return dataset
 
-################### SKRRR ######################
+################### CHECK THE SKEWING OF THE DATASET  ######################
 def apply_log1p_if_skewed(df, threshold=1.0):
     skewed_feats = df.select_dtypes(include=[np.number]).apply(lambda x: x.skew()).sort_values(ascending=False)
     skewed_cols = skewed_feats[skewed_feats > threshold].index
