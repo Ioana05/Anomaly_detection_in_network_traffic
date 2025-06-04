@@ -2,9 +2,6 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler, RobustScaler
 from sklearn.feature_selection import SelectKBest, f_classif
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import (accuracy_score, classification_report,
-                           confusion_matrix, roc_auc_score, f1_score)
 from imblearn.over_sampling import SMOTE
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -19,6 +16,49 @@ testing_csv = ("C:/Users/Asus/Desktop/Anomaly_detection_in_network_traffic/datas
 
 training_set = pd.read_csv(training_csv)
 testing_set = pd.read_csv(testing_csv)
+
+# --- NEW: Function to filter dataset by attack type ---
+def filter_dataset_by_attack(df, attack_type_to_keep):
+    """
+    Filters the dataset to include only normal traffic (label=0)
+    and samples of a specific attack category.
+    """
+    # Keep normal traffic (label 0)
+    normal_traffic = df[df['label'] == 0]
+    # Keep the specified attack type
+    specific_attack_traffic = df[(df['label'] == 1) & (df['attack_cat'] == attack_type_to_keep)]
+    # Concatenate them back
+    filtered_df = pd.concat([normal_traffic, specific_attack_traffic]).reset_index(drop=True)
+    print(f"Filtered dataset to include only '{attack_type_to_keep}' and normal traffic. New size: {len(filtered_df)}")
+    return filtered_df
+
+# --- NEW: Apply filtering immediately after loading ---
+training_set = filter_dataset_by_attack(training_set, 'Fuzzers')
+testing_set = filter_dataset_by_attack(testing_set, 'Fuzzers')
+
+# Dupa o analiza manuala a setului de date, am observat ca exista multe -
+# in coloana SERVICE
+# Calculăm moda pe setul de training (nu pe setul de test)
+def clean_dataset():
+    for col in training_set.columns:
+        # doar pe coloana Sevice intalnim aceste '-' simboluri pe care vrem sa le inlocuim
+        if col == 'service':
+            # inlocuiesc '-' cu moda
+            mode_val = training_set[col].mode()[0]
+            training_set[col] = training_set[col].replace('-', mode_val)
+            testing_set[col] = testing_set[col].replace('-', mode_val)
+
+        # verific daca exista si alte coloane cu None
+        if training_set[col].isnull().any():
+            if training_set[col].dtype == 'object':
+                mode_val = training_set[col].mode()[0]
+                training_set[col] = training_set[col].fillna(mode_val)
+                testing_set[col] = testing_set[col].fillna(mode_val)
+            else:
+                median_val = training_set[col].median()
+                training_set[col] = training_set[col].fillna(median_val)
+                testing_set[col] = testing_set[col].fillna(median_val)
+    return training_set
 
 ########## FEATURE ENGINEERING #################
 def feature_engineering(dataset):
@@ -40,9 +80,12 @@ def feature_engineering(dataset):
 
     # return dataset
 
-    dataset['flow_iat_std'] = dataset[['smean', 'dmean']].std(axis=1)  # Inter-arrival time variability
-    dataset['proto_service_combo'] = dataset['proto'].astype(str) + "_" + dataset['service'].astype(str)  # Interaction feature
-    dataset['packet_size_entropy'] = -(dataset['spkts']*np.log(dataset['spkts']+1e-6) + dataset['dpkts']*np.log(dataset['dpkts']+1e-6))  # Traffic randomness
+     # adaugam o coloana care sa contina deviatia standard a timpilor de sosire
+    dataset['flow_iat_std'] = dataset[['smean', 'dmean']].std(axis=1)
+    # combinatie dintre protocolul utilizat si serviciu(ne ofera mai multe detalii despre ce actiune a avut loc(de ex TCP+HTTP ar putea indica web searching))
+    dataset['proto_service_combo'] = dataset['proto'].astype(str) + "_" + dataset['service'].astype(str)
+    # calculeaza entropia dimensiunii pachetelor (practic cat de random e traficul)
+    dataset['packet_size_entropy'] = -(dataset['spkts']*np.log(dataset['spkts']+1e-6) + dataset['dpkts']*np.log(dataset['dpkts']+1e-6))
     return dataset
 
 ################### ENCODARE PE VALORILE NON NUMERICE #############################
@@ -59,6 +102,8 @@ def preprocessing(dataset, fit = True):
       dataset[col] = encoders[col].transform(dataset[col])
   return dataset
 
+  return dataset
+
 ################### CHECK THE SKEWING OF THE DATASET  ######################
 def apply_log1p_if_skewed(df, threshold=1.0):
     skewed_feats = df.select_dtypes(include=[np.number]).apply(lambda x: x.skew()).sort_values(ascending=False)
@@ -72,7 +117,7 @@ def apply_log1p_if_skewed(df, threshold=1.0):
 def normalization(dataset, fit=True, scaler=None):
     dataset = dataset.select_dtypes(include=["number"])
     if fit:
-        scaler = RobustScaler()
+        scaler = MinMaxScaler()
         features = scaler.fit_transform(dataset)
         return features, scaler
     else:
@@ -148,8 +193,28 @@ def elastic_net(X_train, y_train, X_test, y_test):
   testing_set_filtered = X_test[selected_features]
   return training_set_filtered, testing_set_filtered
 
-########## ANALIZAM CORELATII ######################
 
+
+def change_proportion_of_data(dataset, percentage_anomalies = 0.10, total = 10000):
+  anomalies = dataset[dataset['label'] == 1]
+  normal_points = dataset[dataset['label'] == 0]
+
+  total = min(len(dataset), total)
+  anomalies_to_add = int(total * percentage_anomalies)
+  normal_points_to_add = total - anomalies_to_add
+
+  # extragem datele
+  anomalies = anomalies.sample(n=anomalies_to_add, random_state=42)
+  normal_points = normal_points.sample(n=normal_points_to_add, random_state=42)
+
+  # aconstruim la loc dataframe ul
+  training_set_resampled = pd.concat([anomalies, normal_points])
+  # balansam
+  training_set_resampled = training_set_resampled.sample(frac=1, random_state=42).reset_index(drop=True)
+  return training_set_resampled
+
+
+########## ANALIZAM CORELATII ######################
 def corelation_matrix():
   # drop classes which are not useful for the classification
   # training_set.drop(['attack_cat'], axis=1, inplace=True)
@@ -160,8 +225,8 @@ def corelation_matrix():
   numeric_testing_set = testing_set.select_dtypes(include=['number'])
 
   # calculează matricea de corelație
-  corr_matrix_test = numeric_testing_set.corr().abs()
-  corr_matrix_train = numeric_training_set.corr().abs()
+  corr_matrix_test = numeric_training_set.corr().abs()
+  corr_matrix_train = numeric_testing_set.corr().abs()
 
   # heatmap pentru vizualizare
   # plt.figure(figsize=(25, 10))
@@ -190,60 +255,6 @@ def corelation_matrix():
 
   return list(columns_to_drop)
 
-
-
-# Dupa o analiza manuala a setului de date, am observat ca exista multe -
-# in coloana SERVICE
-# Calculăm moda pe setul de training (nu pe setul de test)
-def clean_dataset():
-    for col in training_set.columns:
-        # doar pe coloana Sevice intalnim aceste '-' simboluri pe care vrem sa le inlocuim
-        if col == 'service':
-            # inlocuiesc '-' cu moda
-            mode_val = training_set[col].mode()[0]
-            training_set[col] = training_set[col].replace('-', mode_val)
-            testing_set[col] = testing_set[col].replace('-', mode_val)
-
-        # verific daca exista si alte coloane cu None
-        if training_set[col].isnull().any():
-            if training_set[col].dtype == 'object':
-                mode_val = training_set[col].mode()[0]
-                training_set[col] = training_set[col].fillna(mode_val)
-                testing_set[col] = testing_set[col].fillna(mode_val)
-            else:
-                median_val = training_set[col].median()
-                training_set[col] = training_set[col].fillna(median_val)
-                testing_set[col] = testing_set[col].fillna(median_val)
-    return training_set
-
-def remove_anomalies(X, y, percentage=0.3):
-
-    if not 0 <= percentage < 1:
-        raise ValueError("Percentage must be between 0 and 1")
-
-    # Separate normal and anomalous samples
-    normal_X = X[y == 0]
-    anomalous_X = X[y == 1]
-    normal_y = y[y == 0]
-    anomalous_y = y[y == 1]
-
-    # Calculate the number of anomalies to remove
-    num_anomalies_to_remove = int(len(anomalous_X) * percentage)
-
-    if num_anomalies_to_remove > 0:
-        # Randomly sample anomalies to remove
-        drop_indices = np.random.choice(anomalous_X.index, num_anomalies_to_remove, replace=False)
-        anomalous_X_filtered = anomalous_X.drop(drop_indices)
-        anomalous_y_filtered = anomalous_y.drop(drop_indices)
-
-        # Combine the filtered anomalies with the normal samples
-        X_filtered = pd.concat([normal_X, anomalous_X_filtered])
-        y_filtered = pd.concat([normal_y, anomalous_y_filtered])
-    else:
-        X_filtered = X
-        y_filtered = y
-
-    return X_filtered, y_filtered
 
 # curatarea setului de date
 training_set = clean_dataset()
@@ -289,7 +300,7 @@ X_test, scaler_test = normalization(X_test, fit=False, scaler=scaler)
 
 
 #  Feature selection
-selector = SelectKBest(f_classif, k=30)
+selector = SelectKBest(f_classif, k=31)
 X_train = selector.fit_transform(X_train, y_train)
 X_test = selector.transform(X_test)
 # X_train, X_test = elastic_net(X_train,y_train, X_test, y_test)
