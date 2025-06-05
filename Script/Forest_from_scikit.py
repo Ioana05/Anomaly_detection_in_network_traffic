@@ -1,10 +1,10 @@
 import random
 import pandas as pd
 from sklearn.ensemble import IsolationForest
-from load_files import training_set, testing_set
 from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_recall_curve, precision_score, recall_score, roc_curve, auc
-from load_files import X_test, y_test, X_train, y_train, change_proportion_of_data
+from load_files import change_proportion_of_data, load_and_preprocess_data
 import matplotlib.pyplot as plt
+X_train, y_train, X_test, y_test = load_and_preprocess_data(target_attack_type= None, rfe_n_features=30 )
 
 
 training_set_resampled = pd.DataFrame(X_train)
@@ -17,14 +17,14 @@ train_anomalies = 0.1
 test_anomalies = 0.1
 # change proportion
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
-testing_set = change_proportion_of_data(testing_set_resampled, percentage_anomalies=test_anomalies, total=30000)
+# testing_set = change_proportion_of_data(testing_set_resampled, percentage_anomalies=test_anomalies, total=30000)
 
 # After changing proportions:
 X_train = training_set_resampled.drop(columns=['label'])  
 y_train = training_set_resampled['label']                 
 
-X_test = testing_set.drop(columns=['label'])              
-y_test = testing_set['label']           
+X_test = testing_set_resampled.drop(columns=['label'])              
+y_test = testing_set_resampled['label']           
 
 if 1 in y_train.unique():
     contamination_rate = y_train.value_counts(normalize=True)[1]
@@ -40,7 +40,7 @@ random_state = [42]
 for tree in trees:
     for sample in max_samples:
         for state in random_state:
-            iso_forest = IsolationForest(n_estimators=tree, max_samples=sample,  random_state=state,  contamination=contamination_rate, max_features=0.7, bootstrap=False)
+            iso_forest = IsolationForest(n_estimators=tree, max_samples=sample,  random_state=state,  contamination=0.5, max_features=0.7, bootstrap=False)
             iso_forest.fit(X_train)
 
             # Predict anomalies
