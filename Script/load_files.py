@@ -119,7 +119,7 @@ def apply_log1p_if_skewed(df, threshold=1.0):
 def normalization(dataset, fit=True, scaler=None):
     dataset = dataset.select_dtypes(include=["number"])
     if fit:
-        scaler = RobustScaler()
+        scaler = MinMaxScaler()
         features = scaler.fit_transform(dataset)
         return features, scaler
     else:
