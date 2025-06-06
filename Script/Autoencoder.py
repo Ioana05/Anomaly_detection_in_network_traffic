@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from load_files import X_res, y_res, X_test, y_test
 import numpy as np
 
-
+X_res = training_set[training_set['label'] == 0].drop(columns=['label', 'id'])
 
 def Autoencoder():
 
