@@ -14,12 +14,13 @@ from load_files import  load_and_preprocess_data,  change_proportion_of_data
 from pyod.models.ocsvm import OCSVM
 
 
-class OCSVM(BaseEstimator, ClassifierMixin):
+class OCSVMClassifier(ClassifierMixin, BaseEstimator):
     def __init__(self, kernel = 'rbf', nu = 0.1, gamma = 0.3):
         self.kernel = kernel
         self.nu = nu
         self.gamma = gamma
         self.model_ = None
+        self._estimator_type = "classifier"
 
     def fit(self, X, y=None):  
         self.model_ = OCSVM(kernel=self.kernel, nu=self.nu, gamma=self.gamma)

@@ -9,7 +9,7 @@ from keras.callbacks import EarlyStopping
 from tensorflow.keras.losses import Huber
 from sklearn.base import BaseEstimator, ClassifierMixin
 
-class AutoEncoder(BaseEstimator, ClassifierMixin):
+class AutoEncoder(ClassifierMixin, BaseEstimator):
 
     def __init__(self, threshold_percentile = 70, epochs = 50, batch_size = 128):
         self.threshold_percentile = threshold_percentile
@@ -17,6 +17,7 @@ class AutoEncoder(BaseEstimator, ClassifierMixin):
         self.batch_size = batch_size
         self.error_threshold = None  #nu sunt sigura daca trenbuie si asta
         self.model = None
+        self._estimator_type = "classifier"
 
 
     def fit(self, X, y = None):
