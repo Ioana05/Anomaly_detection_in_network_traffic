@@ -11,7 +11,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 
 class AutoEncoder(ClassifierMixin, BaseEstimator):
 
-    def __init__(self, threshold_percentile = 70, epochs = 50, batch_size = 128):
+    def __init__(self, threshold_percentile = 70, epochs = 50, batch_size = 64):
         self.threshold_percentile = threshold_percentile
         self.epochs = epochs
         self.batch_size = batch_size
@@ -75,7 +75,6 @@ class AutoEncoder(ClassifierMixin, BaseEstimator):
         reconstruction_error = np.mean(np.square(X - reconstructions), axis=1)
         
         # Convertim erorile in scoruri intre 0 si 1 
-        # Normalize errors to be between 0 and 1 (relative to threshold)
         proba = np.clip(reconstruction_error / (2 * self.error_threshold_), 0, 1)
         #  transformamm scrurile de anomalii inintr o matrice cu doua coloane, asa cum se asteapta scikit
         #  sa primeasca de la functia predict_proba

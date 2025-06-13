@@ -24,69 +24,15 @@ testing_set_resampled = pd.DataFrame(X_test)
 testing_set_resampled['label'] = y_test
 
 train_anomalies = 0.1
-test_anomalies = 0.1
-change proportion
-# training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
-# testing_set_resampled = change_proportion_of_data(testing_set_resampled, percentage_anomalies=test_anomalies, total=30000)
+# change proportion
+training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
 
 # After changing proportions:
 X_train = training_set_resampled.drop(columns=['label'])  
-y_train = training_set_resampled['label']                 
-
-X_test = testing_set_resampled.drop(columns=['label'])              
-y_test = testing_set_resampled['label']           
+y_train = training_set_resampled['label']   
 
 X_train = X_train[y_train == 0]
 y_train = y_train[y_train == 0]
-
-def balance(dataset, min_samples=100, max_samples=3000, random_state=42):
-    if 'attack_cat' not in dataset.columns:
-        raise ValueError("Column 'attack_cat' is required for stratified balancing.")
-
-    normal = dataset[dataset['label'] == 0]
-    anomalies = dataset[dataset['label'] == 1]
-    attack_types = anomalies['attack_cat'].unique()
-
-    sampled_anomalies = []
-    for attack in attack_types:
-        subset = anomalies[anomalies['attack_cat'] == attack]
-        count = min(max(len(subset), min_samples), max_samples)
-        sampled = subset.sample(n=min(count, len(subset)), random_state=random_state)
-        sampled_anomalies.append(sampled)
-
-    balanced_anomalies = pd.concat(sampled_anomalies, ignore_index=True)
-    balanced_normals = normal.sample(n=len(balanced_anomalies), random_state=random_state, replace = False)
-
-    final = pd.concat([balanced_anomalies, balanced_normals], ignore_index=True).sample(frac=1, random_state=random_state)
-    final['id'] = final.index
-    print(f"Balanced (semi-stratified) dataset size: {len(final)}")
-
-    return final
-
-def stratified_kfold_balance(dataset, n_splits=5, min_samples=100, max_samples=3000, random_state=42):
-    """
-    Generate balanced folds while preserving attack type distribution
-    Returns: List of (train_idx, test_idx) pairs
-    """
-    if 'attack_cat' not in dataset.columns:
-        raise ValueError("Column 'attack_cat' is required for stratified balancing.")
-
-    # First create balanced dataset using your existing logic
-    balanced_data = balance(dataset, min_samples, max_samples, random_state)
-
-    # Create a combined stratification column (attack_cat + label)
-    balanced_data['stratify_col'] = balanced_data['attack_cat'].astype(str) + "_" + balanced_data['label'].astype(str)
-
-    # Initialize stratified k-fold
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-
-
-
-
-
-
-
-
 
 # Generate folds
 X_train_final, X_val, y_train_final, y_val = train_test_split(
@@ -178,12 +124,12 @@ def SVDD_with_validation():
 
 
 def OCSVM_with_validation(X_train_final, X_val, y_val, X_test, y_test):
-    kernels = ['linear', 'poly', 'rbf', 'sigmoid']
+    kernels = ['rbf']
     for ker in kernels:
-        print(f"Training OCSVM on training split with gamma = 1, nu = 0.3 ...")
+        print(f"Training OCSVM on training split with gamma = 1.0, nu = 0.3 ...")
 
         # Initialize and train the OCSVM model
-        model = OCSVM(nu=0.1, kernel=ker, gamma=0.3)
+        model = OCSVM(nu=0.3, kernel=ker, gamma= 1.0)
         model.fit(X_train_final)
 
         # Validation predictions
@@ -198,18 +144,19 @@ def OCSVM_with_validation(X_train_final, X_val, y_val, X_test, y_test):
         # Test predictions
         test_preds = model.predict(X_test)
         print("Final Test Results:")
-        print(f"F1: {f1_score(y_test, test_preds):.4f}")
-        print(f"Accuracy: {accuracy_score(y_test, test_preds):.4f}")
+        print(f"Classification Report: {classification_report(y_test, test_preds)}")
 
         # Plot prediction distribution on test set
-        unique, counts = np.unique(test_preds, return_counts=True)
-        pred_df = pd.DataFrame({'Label': unique, 'Count': counts})
-        sns.barplot(data=pred_df, x='Label', y='Count')
-        plt.xticks([0, 1], ['Inlier', 'Outlier'])
-        plt.title('Prediction Distribution')
-        plt.show()
-
+        # unique, counts = np.unique(test_preds, return_counts=True)
+        # pred_df = pd.DataFrame({'Label': unique, 'Count': counts})
+        # sns.barplot(data=pred_df, x='Label', y='Count')
+        # plt.xticks([0, 1], ['Inlier', 'Outlier'])
+        # plt.title('Prediction Distribution')
+        # plt.show()
+print("Results for OCSVM:")
 OCSVM_with_validation(X_train_final, X_val, y_val, X_test, y_test)
 
+
+print("Results for SVDD:")
 # SVDD_with_validation()
 

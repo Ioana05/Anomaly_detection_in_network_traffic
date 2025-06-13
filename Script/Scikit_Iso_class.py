@@ -9,7 +9,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 
 
 class IsolationForestScikit( ClassifierMixin, BaseEstimator):
-    def __init__(self, n_estimators = 100, max_samples = 256, random_state = 42, contamination = 'auto', max_features = 0.7, bootstrap = False):
+    def __init__(self, n_estimators = 100, max_samples = 256, random_state = 42, contamination = 0.5, max_features = 0.7, bootstrap = False):
         self.n_estimators = n_estimators
         self.max_samples = max_samples
         self.random_state = random_state

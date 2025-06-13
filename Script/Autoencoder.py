@@ -24,24 +24,16 @@ def Autoencoder(specified_threshold):
     # Arhitectura autoencoder
     input_layer = Input(shape=(input_dim,))
     encoded = Dense(128, activation='relu')(input_layer)
-    # encoded = LeakyReLU(alpha=0.01)(encoded) 
     encoded = Dense(64, activation='relu')(encoded)
-    # encoded = LeakyReLU(alpha=0.01)(encoded) 
     encoded = Dense(32, activation='relu')(encoded)
-    # encoded = LeakyReLU(alpha=0.01)(encoded) 
-    bottleneck = Dense(8, activation='relu')(encoded)
-    # bottleneck = LeakyReLU(alpha=0.01)(bottleneck) 
+    bottleneck = Dense(4, activation='relu')(encoded)
     decoded = Dense(32, activation='relu')(bottleneck)
-    # decoded = LeakyReLU(alpha=0.01)(decoded) 
-    decoded = Dense(64, activation='relu')(decoded)
-    # decoded = LeakyReLU(alpha=0.01)(decoded)
-    
+    decoded = Dense(64, activation='relu')(decoded)    
     decoded = Dense(128, activation='relu')(decoded)
-    # decoded = LeakyReLU(alpha=0.01)(decoded) 
-    output_layer = Dense(input_dim, activation='linear')(decoded)
+    output_layer = Dense(input_dim, activation='tanh')(decoded)
 
     autoencoder = Model(inputs=input_layer, outputs=output_layer)
-    # autoencoder.compile(optimizer=Adam(learning_rate=0.001), loss='mae')
+    # autoencoder.compile(optimizer=Adam(learning_rate=0.001), loss='binary_crossentropy')
     autoencoder.compile(optimizer=Adam(0.001), loss=Huber(delta=1.0))
 
 
@@ -53,7 +45,7 @@ def Autoencoder(specified_threshold):
     autoencoder.fit(
         X_train, X_train,
         epochs=50,
-        batch_size=128,
+        batch_size=64,
         validation_split=0.2,
         verbose=1,
         callbacks=[early_stop]
@@ -77,18 +69,20 @@ def Autoencoder(specified_threshold):
 
     # PLOT OPTIONAL  
 
-    plt.figure(figsize=(10, 5))
-    plt.hist(reconstruction_error[y_test == 0], bins=50, alpha=0.6, label="Normal")
-    plt.hist(reconstruction_error[y_test == 1], bins=50, alpha=0.6, label="Attack")
-    plt.axvline(error_threshold, color='red', linestyle='--', label="Threshold")
-    plt.title("Distribuția erorii de reconstrucție")
-    plt.xlabel("MSE")
-    plt.ylabel("Număr de instanțe")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    # plt.figure(figsize=(10, 5))
+    # plt.hist(reconstruction_error[y_test == 0], bins=50, alpha=0.6, label="Normal")
+    # plt.hist(reconstruction_error[y_test == 1], bins=50, alpha=0.6, label="Attack")
+    # plt.axvline(error_threshold, color='red', linestyle='--', label="Threshold")
+    # plt.title("Distribuția erorii de reconstrucție")
+    # plt.xlabel("MSE")
+    # plt.ylabel("Număr de instanțe")
+    # plt.legend()
+    # plt.grid(True)
+    # plt.show()
 
-possible_thresholds = [50, 55, 60, 65, 70, 75, 80, 85]
-for threshold in possible_thresholds:
-    print(f"For threshold {threshold}:")
-    Autoencoder(threshold)
+possible_thresholds = [50, 55, 60, 65, 70, 75]
+# for threshold in possible_thresholds:
+#     print(f"For threshold {threshold}:")
+#     Autoencoder(threshold)
+print("Autoencoder cu mae")
+Autoencoder(70)

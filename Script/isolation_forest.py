@@ -1,7 +1,7 @@
 import random
 
 import pandas as pd
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 import math
 import numpy as np
 import seaborn as sns
@@ -20,19 +20,13 @@ testing_set_resampled = pd.DataFrame(X_test)
 testing_set_resampled['label'] = y_test
 
 train_anomalies = 0.1
-test_anomalies = 0.1
 # change proportion
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
-# testing_set_resampled = change_proportion_of_data(testing_set_resampled, percentage_anomalies=test_anomalies, total=30000)
 
 # After changing proportions:
 X_train = training_set_resampled.drop(columns=['label'])  
 y_train = training_set_resampled['label']                 
-
-X_test = testing_set_resampled.drop(columns=['label'])              
-y_test = testing_set_resampled['label']           
-
-
+        
 
 # average path length is given by the estimation of average height for BST
 def calculateC(n):
@@ -45,7 +39,6 @@ def calculateC(n):
 def iTree(subset, current_tree_height, limit_of_height):
     # i m not sure if I need the second condition in if
     if current_tree_height >= limit_of_height or len(subset) <= 1:
-        # see why should I return a dictionary
         #  nu cred ca e ok ceea ce atribui frunnzelor in randul de mai jos
         return {"Size": len(subset)}
     else:
@@ -127,7 +120,7 @@ def run_isolation_forest():
             scores.append(result)
 
         for i, x in testing_set_resampled.iterrows():
-            if scores[i] > 0.425:
+            if scores[i] > 0.43:
                 classified_labels[i] = float(1.0)
             else:
                 classified_labels[i] = float(0.0)
@@ -135,6 +128,21 @@ def run_isolation_forest():
         print(f"Number of trees: {number_of_trees[epoch]} and sub-sampling size: {sub_sampling_size}")
         print(accuracy_score(testing_set_resampled['label'], list(classified_labels.values())))
         print(classification_report(testing_set_resampled['label'], list(classified_labels.values())))
+        print(roc_auc_score(testing_set_resampled['label'], list(classified_labels.values())))
+
+        threshold = np.percentile(scores, 50)
+        print(threshold)
+        for i, x in testing_set_resampled.iterrows():
+            if scores[i] > threshold:
+                classified_labels[i] = float(1.0)
+            else:
+                classified_labels[i] = float(0.0)
+
+        print(f"Number of trees: {number_of_trees[epoch]} and sub-sampling size: {sub_sampling_size}")
+        print(accuracy_score(testing_set_resampled['label'], list(classified_labels.values())))
+        print(roc_auc_score(testing_set_resampled['label'], list(classified_labels.values())))
+        print(classification_report(testing_set_resampled['label'], list(classified_labels.values())))
+
 
 
     anomalies = [score for score, is_anomaly in zip(scores, testing_set_resampled['label']) if is_anomaly]
@@ -152,10 +160,6 @@ def run_isolation_forest():
 
     # Afișează graficul
     plt.show()
-
-    # plt.hist(scores, bins=100)
-    # plt.title("Distribuție scoruri de anomalie")
-    # plt.show()
 
 
 run_isolation_forest()

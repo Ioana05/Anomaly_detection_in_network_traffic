@@ -17,7 +17,6 @@ train_anomalies = 0.1
 test_anomalies = 0.1
 # change proportion
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
-# testing_set = change_proportion_of_data(testing_set_resampled, percentage_anomalies=test_anomalies, total=30000)
 
 # After changing proportions:
 X_train = training_set_resampled.drop(columns=['label'])  

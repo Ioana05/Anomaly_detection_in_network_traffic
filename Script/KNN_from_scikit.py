@@ -120,10 +120,6 @@ def average_KNN_scikit_rule_thumb(batch_size = 1000):
     print(classification_report(y_test, predictions))
 
 
-from sklearn.metrics import classification_report
-from sklearn.neighbors import NearestNeighbors
-import numpy as np
-
 def k_random_voting_methods(batch_size = 1000):
     freq_of_anomalies = {}
     epochs = 7
@@ -159,12 +155,11 @@ def k_random_voting_methods(batch_size = 1000):
     print(classification_report(y_test, scores))
 
 
-def NN(batch_size = 1000):
+def NN(k,batch_size = 1000):
     # in mai multe paperuri(sunt alesi k intre 5 si 10% din numarul total de date)
 
     scores = np.zeros(len(X_test))
-    # we use rule of thumb
-    k = 2
+    # k = 2
 
     knn = NearestNeighbors(n_neighbors=k)
     knn.fit(X_train)
@@ -178,11 +173,12 @@ def NN(batch_size = 1000):
         scores[start:end] += kth_distances
 
 
-    # cele mai mari 5% distante vor fi considerate anomalii
+    # cele mai mari 50% distante vor fi considerate anomalii
     threshold_for_anomalies = np.percentile(scores, 50)
 
     predictions = (scores > threshold_for_anomalies )
 
+    print(f"Scores for k = {k}:")
     print(classification_report(y_test, predictions))
 
 
@@ -190,4 +186,7 @@ def NN(batch_size = 1000):
 # k_random_voting_methods()
 # NN()
 # average_KNN_scikit_rule_thumb(batch_size=1000)
-average_KNN_scikitV2()
+# average_KNN_scikitV2()
+
+for i in range(1,20):
+    NN(k = i)

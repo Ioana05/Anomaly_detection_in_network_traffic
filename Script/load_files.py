@@ -116,10 +116,13 @@ def apply_log1p_if_skewed(df, threshold=1.0):
 
 
 ################## NORMALIZAM ###################
-def normalization(dataset, fit=True, scaler=None):
+def normalization(dataset, fit=True, scaler = None, sc=None):
     dataset = dataset.select_dtypes(include=["number"])
     if fit:
-        scaler = MinMaxScaler()
+        if sc == 'Robust':
+            scaler = RobustScaler()
+        else:
+            scaler = MinMaxScaler()
         features = scaler.fit_transform(dataset)
         return features, scaler
     else:
@@ -262,7 +265,7 @@ def load_and_preprocess_data(training_csv_path = TRAINING_CSV_PATH,
                              testing_csv_path = TESTING_CSV_PATH,
                              target_attack_type= None,
                              rfe_n_features = 30,
-                             smote_random_state = None):
+                             smote_random_state = 42, scaler = None):
    
     ########## INCARC DATELE #####################
     training_set = pd.read_csv(training_csv_path)    
@@ -309,12 +312,11 @@ def load_and_preprocess_data(training_csv_path = TRAINING_CSV_PATH,
     # X_test_copy[skewed_cols] = np.log1p(X_test_copy[skewed_cols])
     # X_test = X_test_copy # Assign the modified X_test back
 
-    print(type(X_train))
-    columns = X_train.columns
     #  Feature scaling
     # Removed original_X_train_cols and original_X_test_cols as they are no longer needed
-    X_train, scaler = normalization(X_train, fit=True)
-    X_test, _ = normalization(X_test, fit=False, scaler=scaler)
+    print(type(X_train))
+    X_train, used_scaler = normalization(X_train, fit=True, sc = scaler)
+    X_test, _ = normalization(X_test, fit=False, scaler=used_scaler)
 
     # X_train = pd.DataFrame(X_train, columns=[columns])
     # X_test = pd.DataFrame(X_test, columns=[columns])
@@ -341,7 +343,7 @@ def load_and_preprocess_data(training_csv_path = TRAINING_CSV_PATH,
     # Handle class imbalance
     if smote_random_state:
         smote = SMOTE(random_state=smote_random_state)
-        X_train, y_train = smote.fit_resample(X_train, y_train)
+        X_test, y_test = smote.fit_resample(X_test, y_test)
 
     # Setezi opțiunea globală pentru a afișa toate coloanele
     pd.set_option('display.max_columns', None)

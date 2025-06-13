@@ -15,16 +15,17 @@ from pyod.models.ocsvm import OCSVM
 
 
 class OCSVMClassifier(ClassifierMixin, BaseEstimator):
-    def __init__(self, kernel = 'rbf', nu = 0.1, gamma = 0.3):
+    def __init__(self, kernel = 'rbf', nu = 0.3, gamma = 1.0):
         self.kernel = kernel
         self.nu = nu
         self.gamma = gamma
         self.model_ = None
         self._estimator_type = "classifier"
 
-    def fit(self, X, y=None):  
+    def fit(self, X, y=None): 
+        X_train_normal = X[y == 0] 
         self.model_ = OCSVM(kernel=self.kernel, nu=self.nu, gamma=self.gamma)
-        self.model_.fit(X)
+        self.model_.fit(X_train_normal)
         return self
     
     def predict(self, X):

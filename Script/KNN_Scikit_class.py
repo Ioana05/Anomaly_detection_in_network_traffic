@@ -9,11 +9,11 @@ from sklearn.exceptions import NotFittedError
 import warnings
 
 class kNNAnomalyDetector(ClassifierMixin, BaseEstimator):
-    def __init__(self, n_neighbors=5, batch_size=1000, contamination=0.05):
+    def __init__(self, n_neighbors=8, batch_size=1000, contamination=0.10):
         self.n_neighbors = n_neighbors
         self.batch_size = batch_size
         self.contamination = contamination
-        self._estimator_type = "classifier" # Correctly set for sklearn compatibility
+        self._estimator_type = "classifier"
     
     def fit(self, X, y=None):
         # Input validation
@@ -30,13 +30,8 @@ class kNNAnomalyDetector(ClassifierMixin, BaseEstimator):
         
         # Handle single-class case (e.g., if all training data is one class)
         if len(self.classes_) == 1:
-            warnings.warn(
-                f"Only one class ({self.classes_[0]}) present in training data. "
-                "This might indicate a problem with your data. "
-                "The model will predict this single class for all inputs."
-            )
             self.single_class_ = self.classes_[0]
-            self.is_fitted_ = True # Mark as fitted even if trivial
+            self.is_fitted_ = True 
             return self
         
         # Use only normal samples (label 0) for training if available
@@ -46,9 +41,6 @@ class kNNAnomalyDetector(ClassifierMixin, BaseEstimator):
         else:
             warnings.warn(
                 "No normal samples (label=0) found in training data, "
-                "or all training data is of a single non-zero class. "
-                "The kNNAnomalyDetector will train on all provided samples. "
-                "Ensure your training data correctly represents 'normal' (label 0)."
             )
             X_train_normal = X # Fallback to using all data if no '0' labels or all are '0'
         
@@ -88,9 +80,7 @@ class kNNAnomalyDetector(ClassifierMixin, BaseEstimator):
         # Normalize scores to probabilities
         min_score, max_score = scores.min(), scores.max()
         if max_score == min_score:
-            # If all scores are the same, assign 0.5 probability (or based on threshold)
-            # A more robust handling for flat scores might be needed depending on context.
-            # For now, treat all as equally likely or based on initial prediction threshold
+            # If all scores are the same, assign 0.5 probability
             proba_anomaly = (scores > self.threshold_).astype(float) 
         else:
             proba_anomaly = (scores - min_score) / (max_score - min_score + 1e-10) # Add epsilon to avoid division by zero
