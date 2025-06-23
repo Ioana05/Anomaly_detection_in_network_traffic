@@ -1,17 +1,12 @@
 import random
-
 import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 import math
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
-from load_files import  load_and_preprocess_data,  change_proportion_of_data
+from Script.pipeline import  load_and_preprocess_data,  change_proportion_of_data
 
 X_train, y_train, X_test, y_test = load_and_preprocess_data(target_attack_type= None, rfe_n_features=30 )
-
-# actually mi am dat seama ca nu cred ca nu este o idee buna sa folosesc one hot encoder pentru ca vor exista coloane cu o singura valoare de 1 swi restul 0,
-# iar asta s ar putea sa influenteze resultatul pentru isolation forest
 
 training_set_resampled = pd.DataFrame(X_train)
 training_set_resampled['label'] = y_train
@@ -20,15 +15,13 @@ testing_set_resampled = pd.DataFrame(X_test)
 testing_set_resampled['label'] = y_test
 
 train_anomalies = 0.1
-# change proportion
+# Schimbam rata de infectare doar pe setul de antrenare
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
 
-# After changing proportions:
 X_train = training_set_resampled.drop(columns=['label'])  
 y_train = training_set_resampled['label']                 
         
-
-# average path length is given by the estimation of average height for BST
+# lungimea medie a drumurilor este inaltimea medie calculata folosind formulele BST
 def calculateC(n):
     gamma = 0.5772156649
     if n <= 1:
@@ -37,30 +30,28 @@ def calculateC(n):
     return expected_average_path_length
 
 def iTree(subset, current_tree_height, limit_of_height):
-    # i m not sure if I need the second condition in if
     if current_tree_height >= limit_of_height or len(subset) <= 1:
-        #  nu cred ca e ok ceea ce atribui frunnzelor in randul de mai jos
         return {"Size": len(subset)}
     else:
-        # Get only the numeric columns from the subset
+        # includem doar feature-urile numerice
         numeric_columns = subset.select_dtypes(include=np.number).columns.tolist()
 
-        # Ensure there are numeric columns to split on
+        # ne asiguram ca au fost gasite coloane numerice
         if not numeric_columns:
-             return {"Size": len(subset)} # Cannot split if no numeric columns
+             return {"Size": len(subset)} 
 
-        # Select a random attribute from the numeric columns
+        # selectam un atribut random in functie de care sa se faca splitul
         random_attr = random.choice(numeric_columns)
 
-        # find min and max to know the interval where to find a splitting value
+        # gasim valoarea minima si maxima pentru a putea forma un interval din care sa selectam valoarea de split
         min_value = subset[random_attr].min()
         max_value = subset[random_attr].max()
 
-        # Handle cases where min and max are the same (all values are identical)
+        # luam in considerare cazul in care min si max sunt egale
         if min_value == max_value:
             return {"Size": len(subset)}
 
-        # now we are randomly selecting a split point
+        # alegem valoarea de split
         random_split_value = random.uniform(min_value, max_value)
 
         lower_values = subset[subset[random_attr] < random_split_value]

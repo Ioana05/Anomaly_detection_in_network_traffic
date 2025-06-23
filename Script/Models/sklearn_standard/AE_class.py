@@ -3,7 +3,6 @@ from tensorflow.keras.layers import Input, Dense
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 from keras.callbacks import EarlyStopping
-from load_files import load_and_preprocess_data
 import numpy as np
 from keras.callbacks import EarlyStopping
 from tensorflow.keras.losses import Huber
@@ -15,16 +14,16 @@ class AutoEncoder(ClassifierMixin, BaseEstimator):
         self.threshold_percentile = threshold_percentile
         self.epochs = epochs
         self.batch_size = batch_size
-        self.error_threshold = None  #nu sunt sigura daca trenbuie si asta
+        self.error_threshold = None  
         self.model = None
         self._estimator_type = "classifier"
 
 
     def fit(self, X, y = None):
-        # nu uita sa trimiti doar date normale(tu l ai antrenat semi supervised, dar poti incerca si unsupervised)
+        # primul strat din retea va avea numarul de neuroni egal cu numarul de feature uri din set astfel incat datele de intrare vor fi compatibile
         input_dim = X.shape[1]
         
-        # Build model
+        # Construim reteaua neurala
         input_layer = Input(shape=(input_dim,))
         encoded = Dense(128, activation='relu')(input_layer)
         encoded = Dense(64, activation='relu')(encoded)
@@ -67,7 +66,6 @@ class AutoEncoder(ClassifierMixin, BaseEstimator):
     
 
     def predict_proba(self, X):
-        # For soft voting 
         if self.model_ is None:
             raise RuntimeError("The model must be fitted before prediction")
             
@@ -76,6 +74,6 @@ class AutoEncoder(ClassifierMixin, BaseEstimator):
         
         # Convertim erorile in scoruri intre 0 si 1 
         proba = np.clip(reconstruction_error / (2 * self.error_threshold_), 0, 1)
-        #  transformamm scrurile de anomalii inintr o matrice cu doua coloane, asa cum se asteapta scikit
+        #  transformamm scorurile de anomalii inintr o matrice cu doua coloane, asa cum se asteapta scikit
         #  sa primeasca de la functia predict_proba
         return np.vstack([1 - proba, proba]).T  # [prob_class_0, prob_class_1]

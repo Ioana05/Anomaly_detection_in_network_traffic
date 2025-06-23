@@ -1,8 +1,5 @@
-import random
-import pandas as pd
 from sklearn.ensemble import IsolationForest
-from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_recall_curve, precision_score, recall_score, roc_curve, auc
-from load_files import change_proportion_of_data, load_and_preprocess_data
+from sklearn.metrics import  roc_curve, auc
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
@@ -67,7 +64,7 @@ class IsolationForestScikit( ClassifierMixin, BaseEstimator):
         # Get anomaly probabilities for class 1
         proba = self.predict_proba(X)[:, 1]
         
-        fpr, tpr, thresholds = roc_curve(y_true, proba, pos_label=1)
+        fpr, tpr, _ = roc_curve(y_true, proba, pos_label=1)
         roc_auc = auc(fpr, tpr)
 
         plt.figure(figsize=(8, 6))

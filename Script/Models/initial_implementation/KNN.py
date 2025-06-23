@@ -1,9 +1,9 @@
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 import pandas as pd
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import classification_report
 import numpy as np
-from load_files import change_proportion_of_data, load_and_preprocess_data
+from Script.pipeline import change_proportion_of_data, load_and_preprocess_data
 X_train, y_train, X_test, y_test = load_and_preprocess_data(target_attack_type= None, rfe_n_features=30 )
 
 
@@ -14,10 +14,8 @@ testing_set_resampled = pd.DataFrame(X_test)
 testing_set_resampled['label'] = y_test
 
 train_anomalies = 0.05
-test_anomalies = 0.1
 # change proportion
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
-# testing_set = change_proportion_of_data(testing_set_resampled, percentage_anomalies=test_anomalies, total=30000)
 
 # After changing proportions:
 X_train = training_set_resampled.drop(columns=['label'])  

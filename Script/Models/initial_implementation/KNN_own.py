@@ -1,10 +1,10 @@
-from load_files import training_set, testing_set
+from Script.pipeline import training_set, testing_set
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.metrics import pairwise_distances, classification_report
 import numpy as np
 from sklearn.metrics import accuracy_score
-from load_files import X_res, y_res, X_train, X_test, y_test
+from Script.pipeline import X_res, y_res, X_train, X_test, y_test
 
 
 #  normalizam

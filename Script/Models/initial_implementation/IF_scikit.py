@@ -1,8 +1,8 @@
 import random
 import pandas as pd
 from sklearn.ensemble import IsolationForest
-from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_recall_curve, precision_score, recall_score, roc_curve, auc
-from load_files import change_proportion_of_data, load_and_preprocess_data
+from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_score, recall_score, roc_curve, auc
+from Script.pipeline import change_proportion_of_data, load_and_preprocess_data
 import matplotlib.pyplot as plt
 X_train, y_train, X_test, y_test = load_and_preprocess_data(target_attack_type= None, rfe_n_features=30 )
 
@@ -15,10 +15,9 @@ testing_set_resampled['label'] = y_test
 
 train_anomalies = 0.1
 test_anomalies = 0.1
-# change proportion
+# Schimbam rata de infectare doar pe setul de antrenare
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
 
-# After changing proportions:
 X_train = training_set_resampled.drop(columns=['label'])  
 y_train = training_set_resampled['label']                 
 
@@ -35,7 +34,8 @@ print(contamination_rate)
 trees = [100]
 max_samples = [256]
 random_state = [42]
-# Train the Isolation Forest
+
+# construim ansamblul de arbori
 for tree in trees:
     for sample in max_samples:
         for state in random_state:
@@ -44,10 +44,9 @@ for tree in trees:
 
             # Predict anomalies
             preds = iso_forest.predict(X_test)
-            preds = [1 if x == -1 else 0 for x in preds]  # Convert -1 to 1 (anomaly), 1 to 0 (normal)
+            preds = [1 if x == -1 else 0 for x in preds]  # Convertim -1 în 1 (pentru anomalii), 1 în 0 (puncte normale)
 
-            # Evaluate
-            # print("Made contamination 0.03")
+            # Evaluăm predicțiile făcute
             print(f"Proportion of anomalies in train dataset: {train_anomalies} and in test dataset: {test_anomalies}")
             print(f"Number of trees {tree}, max_samples {sample}, random_state {state}")
             print("Accuracy:", accuracy_score(y_test, preds), "Recall:", recall_score(y_test, preds), "Precision: ", precision_score(y_test, preds), "F1-score:", f1_score(y_test, preds))
