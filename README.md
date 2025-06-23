@@ -9,4 +9,20 @@ The problem of anomaly detection in network traffic aims to identify unusual dat
 </ul>
 
 ## Installation 
-`git clone `
+```
+git clone https://github.com/Ioana05/Anomaly_detection_in_network_traffic.git
+cd Anomaly_detection_in_network_traffic/Script  
+pip install -r requirements.txt
+```
+
+## Project structure
+```
+Script/  
+├── Models/  
+│   ├── initial_implementation/  # initial implementation for all the models  
+│   └── sklearn_standard/        # Scikit-learn wrappers for the models + voting methods
+│  
+├── pipeline.py                  # Data preprocessing  
+├── requirements.txt             # Dependencies  
+Datasets/                        # UNSW-nb15 training and testing datasets 
+```
