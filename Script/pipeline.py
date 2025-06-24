@@ -5,7 +5,6 @@ from sklearn.feature_selection import SelectKBest, f_classif
 from imblearn.over_sampling import SMOTE
 import matplotlib.pyplot as plt
 import seaborn as sns
-from imblearn.combine import SMOTEENN
 from sklearn.model_selection import StratifiedKFold
 from sklearn.linear_model import ElasticNetCV
 TRAINING_CSV_PATH = "C:/Users/Asus/Desktop/Anomaly_detection_in_network_traffic/datasets/UNSW_NB15_training-set.csv"
@@ -174,7 +173,6 @@ def change_proportion_of_data(dataset, percentage_anomalies = 0.10, total = 5000
   training_set_resampled = pd.concat([anomalies, normal_points])
   # balansam
   training_set_resampled = training_set_resampled.sample(frac=1, random_state=42).reset_index(drop=True)
-  print(f"Dimensiunea setului dupa schimbarea proportiei este: {len(training_set_resampled)}")
 
   return training_set_resampled
 
@@ -216,7 +214,6 @@ def corelation_matrix(training_set):
    for col, _, _ in high_corr_pairs:
      if col not in columns_to_drop:
        columns_to_drop.add(col)
-   print(list(columns_to_drop))
    return list(columns_to_drop)
 
 

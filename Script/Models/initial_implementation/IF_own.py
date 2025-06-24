@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Script.pipeline import  load_and_preprocess_data,  change_proportion_of_data
 
-X_train, y_train, X_test, y_test = load_and_preprocess_data(target_attack_type= None, rfe_n_features=30 )
+X_train, y_train, X_test, y_test, _, _ = load_and_preprocess_data(target_attack_type= None, rfe_n_features=30 )
 
 training_set_resampled = pd.DataFrame(X_train)
 training_set_resampled['label'] = y_train
@@ -18,6 +18,7 @@ train_anomalies = 0.1
 # Schimbam rata de infectare doar pe setul de antrenare
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
 
+# Dupa ce am schimbat rata, separam iarasi datele de antrenare de datele de test
 X_train = training_set_resampled.drop(columns=['label'])  
 y_train = training_set_resampled['label']                 
         
@@ -66,7 +67,7 @@ def iTree(subset, current_tree_height, limit_of_height):
                 "SplitValue": random_split_value
                 }
 
-
+# construim ansamblul de arbori 
 def iForest(training_set, number_of_trees, sub_sampling_size):
     height_limit = math.ceil(math.log(sub_sampling_size))
     forest = []
@@ -87,6 +88,7 @@ def pathLength(dataPoint, Tree, current_path_length):
     else:
         return pathLength(dataPoint, Tree['Right'], current_path_length + 1)
 
+# scorul de anomalie va fi calculat conform formulei din paper
 def computeAnomalyScore(dataPoint, forest):
     sum_of_paths = 0
     for tree in forest:
@@ -111,6 +113,7 @@ def run_isolation_forest():
             scores.append(result)
 
         for i, x in testing_set_resampled.iterrows():
+            # 0.43 este cel mai bun threshold gasit
             if scores[i] > 0.43:
                 classified_labels[i] = float(1.0)
             else:

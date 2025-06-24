@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.metrics import classification_report
 import numpy as np
 from Script.pipeline import change_proportion_of_data, load_and_preprocess_data
-X_train, y_train, X_test, y_test = load_and_preprocess_data(target_attack_type= None, rfe_n_features=30 )
+X_train, y_train, X_test, y_test, _, _ = load_and_preprocess_data(target_attack_type= None, rfe_n_features=30 )
 
 
 training_set_resampled = pd.DataFrame(X_train)
@@ -13,16 +13,13 @@ training_set_resampled['label'] = y_train
 testing_set_resampled = pd.DataFrame(X_test)
 testing_set_resampled['label'] = y_test
 
-train_anomalies = 0.05
-# change proportion
+train_anomalies = 0.1
+# schimbam rata de infectare din setul de antrenare
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
 
-# After changing proportions:
+# Dupa ce am schimbat rata, separam iarasi datele de antrenare de datele de test
 X_train = training_set_resampled.drop(columns=['label'])  
 y_train = training_set_resampled['label']                 
-
-X_test = testing_set_resampled.drop(columns=['label'])              
-y_test = testing_set_resampled['label']           
 
 
 def average_KNN_scikit(batch_size = 1000):
@@ -58,8 +55,11 @@ def average_KNN_scikit(batch_size = 1000):
 
     print(classification_report(y_test, predictions))
 
-
+# in aceasta varianta, valorile pentru k sunt alese uniform 
+# pe intervalul [0.05*N, 0.1*N], unde N este dimensiunea setului
+# de antrenare 
 def average_KNN_scikitV2(batch_size = 1000):
+
     # in mai multe paperuri(sunt alesi k intre 5 si 10% din numarul total de date)
     k_values = np.linspace(int(0.05 * len(X_train)), int(0.1 * len(X_train)), num=10, dtype=int)
     scores = np.zeros(len(X_test))
@@ -92,10 +92,8 @@ def average_KNN_scikitV2(batch_size = 1000):
 
 def average_KNN_scikit_rule_thumb(batch_size = 1000):
    
-    # in mai multe paperuri(sunt alesi k intre 5 si 10% din numarul total de date)
-
     scores = np.zeros(len(X_test))
-    # we use rule of thumb
+    # aici am ales k printr-o metoda comuna , radical din N, unde N este dimensiunea setului de antrenare
     k = int(np.sqrt(len(X_train)))
 
     knn = NearestNeighbors(n_neighbors=k)
@@ -110,7 +108,7 @@ def average_KNN_scikit_rule_thumb(batch_size = 1000):
         scores[start:end] += kth_distances
 
 
-    # cele mai mari 5% distante vor fi considerate anomalii
+    # cele mai mari 50% distante vor fi considerate anomalii
     threshold_for_anomalies = np.percentile(scores, 50)
 
     predictions = (scores > threshold_for_anomalies )
@@ -118,11 +116,14 @@ def average_KNN_scikit_rule_thumb(batch_size = 1000):
     print(classification_report(y_test, predictions))
 
 
+
+# am ales 7 valori diferite pentru k, am calculat KNN pe fiecare si am stocat frecvanta
+# cu care fiecare punct este considerat anomalie(rezultate destul de slabe)
 def k_random_voting_methods(batch_size = 1000):
     freq_of_anomalies = {}
     epochs = 7
     print(f"Total epochs: {epochs}")
-    # construim o lista cu 7 valori pt k distribuite uniform
+
     k_values = np.linspace(int(0.05 * len(X_train)), int(0.1 * len(X_train)), num=7, dtype=int)
     for epoch in range(epochs):
         print(f"Current epoch: {epoch}")
@@ -152,12 +153,11 @@ def k_random_voting_methods(batch_size = 1000):
 
     print(classification_report(y_test, scores))
 
-
-def NN(k,batch_size = 1000):
+# varianta finala
+def KNN(k,batch_size = 1000):
     # in mai multe paperuri(sunt alesi k intre 5 si 10% din numarul total de date)
 
     scores = np.zeros(len(X_test))
-    # k = 2
 
     knn = NearestNeighbors(n_neighbors=k)
     knn.fit(X_train)
@@ -180,11 +180,7 @@ def NN(k,batch_size = 1000):
     print(classification_report(y_test, predictions))
 
 
-        
-# k_random_voting_methods()
-# NN()
-# average_KNN_scikit_rule_thumb(batch_size=1000)
-# average_KNN_scikitV2()
-
-for i in range(1,20):
-    NN(k = i)
+# for ul pentru ca am incercat mai multe valori pentru k
+# for i in range(1,20):
+#     KNN(k = i)
+KNN(8)

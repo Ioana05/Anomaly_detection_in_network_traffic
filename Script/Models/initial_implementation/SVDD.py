@@ -3,8 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pyod.models.deep_svdd import DeepSVDD
-from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import RandomizedSearchCV 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (accuracy_score, classification_report,confusion_matrix, roc_auc_score, f1_score)
 import numpy as np
@@ -23,7 +21,7 @@ train_anomalies = 0.1
 # schimbam rata de infectare a setului de antrenare
 training_set_resampled = change_proportion_of_data(training_set_resampled, percentage_anomalies=train_anomalies)
 
-# After changing proportions:
+# Dupa ce am schimbat rata, separam iarasi datele de antrenare de datele de test
 X_train = training_set_resampled.drop(columns=['label'])  
 y_train = training_set_resampled['label']   
 
