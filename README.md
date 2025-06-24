@@ -1,4 +1,4 @@
-# Anomaly detection in network traffic
+# Anomaly detection in network traffic :globe_with_meridians:
 ## Overview
 The problem of anomaly detection in network traffic aims to identify unusual data patterns that may indicate cyberattacks. As the number of internet-based services continues to grow, early detection of such anomalies becomes essential for protecting information systems. Fortunately, machine learning methods provide powerful tools for analyzing and classifying network traffic, enabling the recognition of complex patterns and the identification of suspicious behavior even in the absence of predefined signatures.
 
@@ -15,7 +15,7 @@ cd Anomaly_detection_in_network_traffic/Script
 pip install -r requirements.txt
 ```
 
-## Project structure
+## Project structure :file_folder:
 ```
 Script/  
 ├── Models/  
